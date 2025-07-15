@@ -1,6 +1,6 @@
 # Colorado River Basin Stream Gage Data Collection Script
 # This script downloads daily discharge data from USGS stream gages 
-# in the Colorado River Basin from 1985 water year to present
+# in the Colorado River Basin 
 
 library(tidyverse)      
 library(dataRetrieval)  
@@ -11,8 +11,8 @@ library(sf)
 library(data.table)
 
 # define time period of interest
-start_time <- "1984-10-01" 
-end_time <- Sys.Date()    
+start_time <- "1984-10-01" # start of 1985 water year
+end_time <- "2015-09-30"  # 30-yr period
 
 # Define Hydrologic Unit Codes (HUCs) for Colorado River Basin
 # i.e., the HUC-04 level watersheds that make up the Colorado River Basin
@@ -49,7 +49,7 @@ nwis_sites_by_state <- map(states_overlap$STUSPS,
                              
                              return(discharge_sites)
                            }
-)
+                           )
 
 # combine all state results and filter to sites within the Colorado River Basin only
 nwis_sites <- bind_rows(nwis_sites_by_state) %>%
@@ -103,7 +103,7 @@ for (i in 1:length(nwis_sites$site_no)){
     endDate = end_time) %>%                 # end date for data retrieval
     # convert all columns to character type for consistent csv output...
     dplyr::mutate(dplyr::across(dplyr::everything(), as.character))
-
+  
   write_csv(data, paste0("data/", nwis_sites[i,]$site_no, ".csv"))
 }
 
@@ -112,3 +112,5 @@ for (i in 1:length(nwis_sites$site_no)){
 all_flow_data <- list.files("data/", full.names = TRUE) %>%
   map_dfr(~data.table::fread(.))
 
+# "X_00060_00003" contains the actual discharge value (in CFS). the "X_00060_00003_cd" is that day's quality code.
+# Anything that starts with "A" means its been approved by the USGS (so QA'ed and considered good data, basically). 
