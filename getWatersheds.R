@@ -31,11 +31,6 @@ getWatersheds <- function(aoi){
     dplyr::filter(tocomid==0) %>%
     tibble::rowid_to_column(., "index")
   
-  # if("Colorado River" %in% outsiders$gnis_name){
-  #   
-  #   mainstem <- outsiders %>%
-  #     filter(gnis_name == "Colorado River")
-  
   watersheds <- vector("list", length = nrow(outsiders))
   
   for(i in 1:nrow(outsiders)){
@@ -53,8 +48,6 @@ getWatersheds <- function(aoi){
     main_watershed <- main_watershed %>%
       st_transform(., st_crs(aoi))
   }
-  
-  
   
   sub_ws <- vector("list", length(nrow(outsiders)))
   
@@ -74,6 +67,8 @@ getWatersheds <- function(aoi){
     summarize(count = n()) %>%
     filter(count == 1)
   
+  # If many downstream segments in the AOI... likely escaper. only need
+  # what is within the AOI.
   escapers <-  bind_rows(sub_ws) %>%
     filter(!value %in% nhd_flowlines$comid) %>%
     group_by(catchment) %>%
