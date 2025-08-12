@@ -8,8 +8,8 @@
 #' @return Watershed shapefile(s) for the aoi
 #' 
 getWatersheds <- function(aoi){
-  # aoi <- sf::st_read("data/ClarkCounty_NV/ClarkCounty_NV.shp")
- 
+   # aoi <- sf::st_read("data/ClarkCounty_NV/ClarkCounty_NV.shp")
+  sf::sf_use_s2(FALSE)
   # read in the complete NHD (in tabular form) to make for much more efficient nhd crawling. 
   # This data in tabular form doesn't exist anywhere online that I know of... -_-
   nhd <- data.table::fread('data/nhd_flow_network.csv') 
@@ -44,7 +44,6 @@ getWatersheds <- function(aoi){
     
   }
   
-  sf::sf_use_s2(FALSE)
   main_watershed <- dplyr::bind_rows(watersheds) %>%
     sf::st_make_valid() %>%
     dplyr::summarize() %>%
@@ -55,7 +54,7 @@ getWatersheds <- function(aoi){
       st_transform(., st_crs(aoi))
   }
   
-  sf::sf_use_s2(TRUE)
+  
   
   sub_ws <- vector("list", length(nrow(outsiders)))
   
@@ -64,16 +63,22 @@ getWatersheds <- function(aoi){
                                         comid = outsiders$comid[i],
                                         distance = 35) %>%
       as_tibble() %>%
-      filter(value %in% nhd_flowlines$comid) %>%
       mutate(catchment = outsiders$comid[i])
   }
   
 
   # if no downstream segments in the AOI = escaping flowline OR something weird
   funky_ws <- bind_rows(sub_ws) %>%
+    filter(value %in% nhd_flowlines$comid) %>%
     group_by(catchment) %>%
     summarize(count = n()) %>%
     filter(count == 1)
+  
+  escapers <-  bind_rows(sub_ws) %>%
+    filter(!value %in% nhd_flowlines$comid) %>%
+    group_by(catchment) %>%
+    summarize(count = n()) %>%
+    filter(count >= 1)
   
   funk_finder <- vector("list", length = nrow(funky_ws))
   
@@ -98,10 +103,15 @@ getWatersheds <- function(aoi){
   mystery_cats <- get_nhdplus(comid = mystery_flowlines$catchment, realization = "catchment",
                               t_srs = sf::st_crs(aoi))
   
-  lil_cats_removed <- main_watershed %>%
-    st_difference(., st_union(mystery_cats))
+  escaper_cats <- get_nhdplus(comid = escapers$catchment, realization = "catchment",
+                          t_srs = sf::st_crs(aoi))
   
-  final_ws <- lil_cats_removed %>%
+  bads <- mystery_cats %>% bind_rows(escaper_cats)
+  
+  bad_cats_removed <- main_watershed %>%
+    st_difference(., st_union(bads)) 
+  
+  final_ws <- bad_cats_removed %>%
     bind_rows(st_make_valid(aoi)) %>%
     summarize() %>%
     nngeo::st_remove_holes() %>%
@@ -112,7 +122,7 @@ getWatersheds <- function(aoi){
     select(-.area)
   
   gc()
-  
+  sf::sf_use_s2(TRUE)
   return(final_ws)
 
 }
