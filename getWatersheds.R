@@ -12,7 +12,7 @@ getWatersheds <- function(aoi){
   sf::sf_use_s2(FALSE)
   # read in the complete NHD (in tabular form) to make for much more efficient nhd crawling. 
   # This data in tabular form doesn't exist anywhere online that I know of... -_-
-  nhd <- data.table::fread('data/nhd_flow_network.csv') 
+  # nhd <- data.table::fread('data/nhd_flow_network.csv') 
   
   # download flowlines for entire aoi
   nhd_flowlines <- nhdplusTools::get_nhdplus(AOI = aoi, 
